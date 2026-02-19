@@ -1,0 +1,6 @@
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.5
+Flask-Login==0.6.2
+werkzeug==2.3.7
+matplotlib==3.7.2
+python-dateutil==2.8.2
