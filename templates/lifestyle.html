@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Lifestyle Tracking - Sleep Tracker{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title mb-0">
+                    <i class="fas fa-heartbeat me-2"></i>Track Daily Lifestyle Factors
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('lifestyle') }}" class="needs-validation" novalidate>
+                    
+                    <!-- Caffeine Intake -->
+                    <div class="mb-3">
+                        <label for="caffeine_intake" class="form-label">
+                            Caffeine Intake (mg)
+                        </label>
+                        <input type="range" class="form-range quality-slider" id="caffeine_intake" 
+                               name="caffeine_intake" min="0" max="500" value="0" step="10">
+                        <div class="d-flex justify-content-between mt-1">
+                            <small>0 mg</small>
+                            <small id="caffeineValue">0 mg</small>
+                            <small>500 mg</small>
+                        </div>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle"></i> Recommended: Less than 200mg, especially after 2 PM
+                        </div>
+                    </div>
+                    
+                    <!-- Screen Time Before Bed -->
+                    <div class="mb-3">
+                        <label for="screen_time" class="form-label">
+                            Screen Time Before Bed (minutes)
+                        </label>
+                        <input type="range" class="form-range quality-slider" id="screen_time" 
+                               name="screen_time" min="0" max="180" value="0" step="5">
+                        <div class="d-flex justify-content-between mt-1">
+                            <small>0 min</small>
+                            <small id="screenTimeValue">0 min</small>
+                            <small>180 min</small>
+                        </div>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle"></i> Recommended: Less than 30 minutes before bed
+                        </div>
+                    </div>
+                    
+                    <!-- Exercise -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="exercise_duration" class="form-label">
+                                Exercise Duration (minutes)
+                            </label>
+                            <input type="number" class="form-control" id="exercise_duration" 
+                                   name="exercise_duration" min="0" max="240" value="0">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="exercise_time" class="form-label">
+                                Exercise Time of Day
+                            </label>
+                            <select class="form-select" id="exercise_time" name="exercise_time">
+                                <option value="">Not specified</option>
+                                <option value="morning">Morning (5 AM - 11 AM)</option>
+                                <option value="afternoon">Afternoon (11 AM - 5 PM)</option>
+                                <option value="evening">Evening (5 PM - 9 PM)</option>
+                                <option value="night">Night (9 PM - 5 AM)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Stress Level -->
+                    <div class="mb-3">
+                        <label for="stress_level" class="form-label">
+                            Daily Stress Level (1-10)
+                        </label>
+                        <input type="range" class="form-range quality-slider" id="stress_level" 
+                               name="stress_level" min="1" max="10" value="5" step="1">
+                        <div class="d-flex justify-content-between mt-1">
+                            <small class="text-success">Low (1)</small>
+                            <small id="stressValue">5</small>
+                            <small class="text-danger">High (10)</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Alcohol and Meal Time -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="alcohol_intake" class="form-label">
+                                Alcohol Intake (drinks)
+                            </label>
+                            <input type="number" class="form-control" id="alcohol_intake" 
+                                   name="alcohol_intake" min="0" max="10" value="0" step="0.5">
+                            <div class="form-text">
+                                1 drink = 12 oz beer, 5 oz wine, or 1.5 oz spirits
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="meal_time" class="form-label">
+                                Last Meal Time (Optional)
+                            </label>
+                            <input type="time" class="form-control" id="meal_time" name="meal_time" 
+                                   value="19:00">
+                            <div class="form-text">
+                                Time of your last meal/snack
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Submit Button -->
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-save me-2"></i>Save Lifestyle Data
+                        </button>
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Recent Lifestyle Logs -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history me-2"></i>Recent Lifestyle Logs
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_logs %}
+                <div class="row">
+                    {% for log in recent_logs %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6>{{ log.date.strftime('%Y-%m-%d') }}</h6>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <small class="text-muted">Caffeine:</small>
+                                        <p class="mb-1">{{ log.caffeine_intake }} mg</p>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Screen Time:</small>
+                                        <p class="mb-1">{{ log.screen_time }} min</p>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Exercise:</small>
+                                        <p class="mb-1">{{ log.exercise_duration }} min</p>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Stress:</small>
+                                        <p class="mb-1">{{ log.stress_level }}/10</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-heartbeat fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No lifestyle logs found. Start tracking your daily habits!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Update slider values in real-time
+        const caffeineSlider = document.getElementById('caffeine_intake');
+        const caffeineValue = document.getElementById('caffeineValue');
+        const screenSlider = document.getElementById('screen_time');
+        const screenValue = document.getElementById('screenTimeValue');
+        const stressSlider = document.getElementById('stress_level');
+        const stressValue = document.getElementById('stressValue');
+        
+        caffeineSlider.addEventListener('input', function() {
+            caffeineValue.textContent = this.value + ' mg';
+        });
+        
+        screenSlider.addEventListener('input', function() {
+            screenValue.textContent = this.value + ' min';
+        });
+        
+        stressSlider.addEventListener('input', function() {
+            stressValue.textContent = this.value;
+        });
+        
+        // Initialize values
+        caffeineValue.textContent = caffeineSlider.value + ' mg';
+        screenValue.textContent = screenSlider.value + ' min';
+        stressValue.textContent = stressSlider.value;
+    });
+</script>
+{% endblock %}
