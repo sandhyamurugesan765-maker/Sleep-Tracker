@@ -20,10 +20,10 @@
             </div>
             <div class="card-body">
                 <!-- Monthly Overview -->
-                {% if monthly_chart %}
+                {% if monthly_chart_data %}
                 <div class="chart-container mb-4">
                     <h5 class="mb-3">Monthly Sleep Overview</h5>
-                    <img src="data:image/png;base64,{{ monthly_chart }}" alt="Monthly Sleep Chart" class="img-fluid">
+                    <canvas id="monthlySleepChart" height="400"></canvas>
                 </div>
                 {% else %}
                 <div class="alert alert-info">
@@ -295,6 +295,112 @@
 
 {% block scripts %}
 <script>
+    // Quality bar styling and chart initialization
+    document.addEventListener('DOMContentLoaded', function() {
+        // Style quality bars
+        document.querySelectorAll('.quality-bar').forEach(el => {
+            const quality = parseFloat(el.dataset.quality) || 0;
+            el.style.width = (quality * 10) + '%';
+            
+            // Add color class based on quality
+            if (quality >= 8) {
+                el.classList.add('bg-success');
+            } else if (quality >= 6) {
+                el.classList.add('bg-info');
+            } else if (quality >= 4) {
+                el.classList.add('bg-warning');
+            } else {
+                el.classList.add('bg-danger');
+            }
+        });
+        
+        // Create monthly chart if data exists
+        {% if monthly_chart_data %}
+        const ctx = document.getElementById('monthlySleepChart').getContext('2d');
+        const data = {{ monthly_chart_data|tojson }};
+        
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.dates,
+                datasets: [
+                    {
+                        label: 'Sleep Duration (hours)',
+                        data: data.durations,
+                        backgroundColor: 'rgba(67, 97, 238, 0.7)',
+                        borderColor: '#4361ee',
+                        borderWidth: 1,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Sleep Quality',
+                        data: data.qualities,
+                        type: 'line',
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: false,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Sleep Duration - Last 30 Days'
+                    },
+                    annotation: {
+                        annotations: {
+                            goalLine: {
+                                type: 'line',
+                                yMin: data.sleep_goal,
+                                yMax: data.sleep_goal,
+                                borderColor: 'red',
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                label: {
+                                    display: true,
+                                    content: 'Sleep Goal',
+                                    position: 'end'
+                                }
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Hours'
+                        },
+                        min: 0,
+                        max: 12
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Quality'
+                        },
+                        min: 0,
+                        max: 10,
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                    }
+                }
+            }
+        });
+        {% endif %}
+    });
+
     // Export data functionality
     function exportData(format) {
         // Show loading state
@@ -360,22 +466,5 @@
             btn.disabled = false;
         }, 2000);
     }
-    document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.quality-bar').forEach(el => {
-            const quality = parseFloat(el.dataset.quality) || 0;
-            el.style.width = (quality * 10) + '%';
-            
-            // Add color class based on quality
-            if (quality >= 8) {
-                el.classList.add('bg-success');
-            } else if (quality >= 6) {
-                el.classList.add('bg-info');
-            } else if (quality >= 4) {
-                el.classList.add('bg-warning');
-            } else {
-                el.classList.add('bg-danger');
-            }
-        });
-    });
 </script>
 {% endblock %}

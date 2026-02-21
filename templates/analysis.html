@@ -111,7 +111,7 @@
                 <!-- Visualization -->
                 <div class="chart-container mb-4">
                     <h5 class="mb-3">Sleep Trends - Last 7 Days</h5>
-                    <img src="data:image/png;base64,{{ chart_url }}" alt="Sleep Analysis Chart" class="img-fluid">
+                    <canvas id="sleepAnalysisChart" height="300"></canvas>
                 </div>
                 
                 <!-- Detailed Analysis -->
@@ -211,12 +211,12 @@
                                     (Actual Sleep Time ÷ Time Spent in Bed) × 100%
                                 </p>
                                 <div class="col-md-5">
-                <div class="bg-light p-2 rounded">
-                    <small class="text-muted">Example:</small><br>
-                    <span class="fw-bold">(7.5h ÷ 8.5h) × 100% = 88.2%</span>
-                </div>
-            </div>
-            <br>
+                                    <div class="bg-light p-2 rounded">
+                                        <small class="text-muted">Example:</small><br>
+                                        <span class="fw-bold">(7.5h ÷ 8.5h) × 100% = 88.2%</span>
+                                    </div>
+                                </div>
+                                <br>
                                 <div class="mb-3">
                                     <div class="d-flex justify-content-between mb-1">
                                         <span><strong>Excellent:</strong> 85-100%</span>
@@ -254,14 +254,14 @@
                                 
                                 <p class="mb-0">
                                     <strong>To improve sleep efficiency:</strong>
-                                    <ul>
-                                        <li>Go to bed only when sleepy</li>
-                                        <li>Get out of bed if you can't sleep after 20 minutes</li>
-                                        <li>Use your bed only for sleep (no TV, phone, etc.)</li>
-                                        <li>Maintain a consistent sleep schedule</li>
-                                        <li>Avoid caffeine, alcohol, and large meals before bed</li>
-                                    </ul>
                                 </p>
+                                <ul>
+                                    <li>Go to bed only when sleepy</li>
+                                    <li>Get out of bed if you can't sleep after 20 minutes</li>
+                                    <li>Use your bed only for sleep (no TV, phone, etc.)</li>
+                                    <li>Maintain a consistent sleep schedule</li>
+                                    <li>Avoid caffeine, alcohol, and large meals before bed</li>
+                                </ul>
                             </div>
                             <div class="col-md-4">
                                 <div class="alert 
@@ -381,7 +381,6 @@
 
 {% block scripts %}
 <script>
-    // Initialize popovers
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize popovers
         var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
@@ -394,6 +393,106 @@
             const efficiency = parseFloat(el.dataset.efficiency) || 0;
             el.style.width = efficiency.toFixed(1) + '%';
         });
-    });
+        
+        // Create Chart.js chart
+        const ctx = document.getElementById('sleepAnalysisChart').getContext('2d');
+        const chartData = {{ chart_data|tojson }};
+        
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartData.dates,
+                datasets: [
+                    {
+                        label: 'Sleep Duration (hours)',
+                        data: chartData.durations,
+                        borderColor: '#4361ee',
+                        backgroundColor: 'rgba(67, 97, 238, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Sleep Quality (1-10)',
+                        data: chartData.qualities,
+                        borderColor: '#4cc9f0',
+                        backgroundColor: 'rgba(76, 201, 240, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        yAxisID: 'y1'
+                    },
+                    {
+                        label: 'Efficiency (%)',
+                        data: chartData.efficiencies,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        yAxisID: 'y2'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Sleep Analysis - Last 7 Days'
+                    },
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Hours'
+                        },
+                        min: 0,
+                        max: 12,
+                        grid: {
+                            drawOnChartArea: true,
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Quality'
+                        },
+                        min: 0,
+                        max: 10,
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                    },
+                    y2: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Efficiency %'
+                        },
+                        min: 0,
+                        max: 100,
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                    }
+                }
+            }
+        });
+});
 </script>
 {% endblock %}
