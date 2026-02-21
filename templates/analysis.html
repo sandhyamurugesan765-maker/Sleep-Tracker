@@ -157,27 +157,24 @@
                                         <td>
                                             <div class="progress" style="height: 20px; position: relative;">
                                                 <div class="progress-bar 
-                                                    {% if log.sleep_efficiency >= 85 %}bg-success
-                                                    {% elif log.sleep_efficiency >= 75 %}bg-info
-                                                    {% elif log.sleep_efficiency >= 65 %}bg-warning
+                                                    {% if (log.sleep_efficiency or 0) >= 85 %}bg-success
+                                                    {% elif (log.sleep_efficiency or 0) >= 75 %}bg-info
+                                                    {% elif (log.sleep_efficiency or 0) >= 65 %}bg-warning
                                                     {% else %}bg-danger{% endif %}" 
                                                      role="progressbar" 
-                                                     style="width: {{ (log.sleep_efficiency or 0)|round(1) }}%;"
+                                                     data-efficiency="{{ log.sleep_efficiency or 0 }}"
                                                      aria-valuenow="{{ log.sleep_efficiency|round(1) }}" 
                                                      aria-valuemin="0" 
                                                      aria-valuemax="100">
                                                     {{ log.sleep_efficiency|round(1) }}%
                                                 </div>
                                             </div>
-                                            {% if log.sleep_efficiency < 65 %}
-                                            <small class="text-danger d-block mt-1">
-                                                <i class="fas fa-exclamation-circle"></i> Very low
+                                            <small class="d-block mt-1">
+                                                Actual sleep: {{ log.sleep_duration|round(1) }}h
+                                                {% if log.sleep_latency %}
+                                                <br><span class="text-muted">Fell asleep in {{ log.sleep_latency }}min</span>
+                                                {% endif %}
                                             </small>
-                                            {% elif log.sleep_efficiency < 75 %}
-                                            <small class="text-warning d-block mt-1">
-                                                <i class="fas fa-exclamation-triangle"></i> Needs improvement
-                                            </small>
-                                            {% endif %}
                                         </td>
                                         <td>{{ log.bedtime.strftime('%I:%M %p') }}</td>
                                         <td>{{ log.wake_up_time.strftime('%I:%M %p') }}</td>
@@ -213,6 +210,13 @@
                                     <strong>Sleep Efficiency</strong> is calculated as: 
                                     (Actual Sleep Time ÷ Time Spent in Bed) × 100%
                                 </p>
+                                <div class="col-md-5">
+                <div class="bg-light p-2 rounded">
+                    <small class="text-muted">Example:</small><br>
+                    <span class="fw-bold">(7.5h ÷ 8.5h) × 100% = 88.2%</span>
+                </div>
+            </div>
+            <br>
                                 <div class="mb-3">
                                     <div class="d-flex justify-content-between mb-1">
                                         <span><strong>Excellent:</strong> 85-100%</span>
@@ -246,6 +250,7 @@
                                         <div class="progress-bar bg-danger" style="width: 65%"></div>
                                     </div>
                                 </div>
+                                <br>
                                 
                                 <p class="mb-0">
                                     <strong>To improve sleep efficiency:</strong>
@@ -378,9 +383,16 @@
 <script>
     // Initialize popovers
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize popovers
         var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
         var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
             return new bootstrap.Popover(popoverTriggerEl);
+        });
+        
+        // Set progress bar widths from data attributes
+        document.querySelectorAll('[data-efficiency]').forEach(el => {
+            const efficiency = parseFloat(el.dataset.efficiency) || 0;
+            el.style.width = efficiency.toFixed(1) + '%';
         });
     });
 </script>

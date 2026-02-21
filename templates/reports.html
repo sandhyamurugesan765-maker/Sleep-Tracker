@@ -12,11 +12,8 @@
                         <i class="fas fa-file-alt me-2"></i>Sleep Reports & Analysis
                     </h4>
                     <div>
-                        <button class="btn btn-outline-primary btn-sm" onclick="exportData('json')">
-                            <i class="fas fa-download me-1"></i>Export JSON
-                        </button>
-                        <button class="btn btn-outline-secondary btn-sm ms-2" onclick="exportData('csv')">
-                            <i class="fas fa-file-csv me-1"></i>Export CSV
+                        <button class="btn btn-success btn-sm" onclick="window.print()">
+                           <i class="fas fa-print me-1"></i>Print Report
                         </button>
                     </div>
                 </div>
@@ -89,51 +86,44 @@
                             <div class="col-md-6">
                                 <h6>Most Common Bedtimes</h6>
                                 <div class="list-group">
-                                    {% set bedtime_groups = {} %}
+                                    {% set bedtime_counts = {} %}
                                     {% for log in sleep_logs %}
-                                        {% set bedtime_hour = log.bedtime.hour %}
-                                        {% if bedtime_hour not in bedtime_groups %}
-                                            {% set _ = bedtime_groups.update({bedtime_hour: 1}) %}
+                                        {% set hour = log.bedtime.hour %}
+                                        {% if hour in bedtime_counts %}
+                                            {% set _ = bedtime_counts.update({hour: bedtime_counts[hour] + 1}) %}
                                         {% else %}
-                                            {% set _ = bedtime_groups.update({bedtime_hour: bedtime_groups[bedtime_hour] + 1}) %}
+                                            {% set _ = bedtime_counts.update({hour: 1}) %}
                                         {% endif %}
                                     {% endfor %}
                                     
-                                    {% for hour, count in bedtime_groups|dictsort %}
+                                    {% for hour in bedtime_counts|sort %}
                                     <div class="list-group-item d-flex justify-content-between align-items-center">
-                                        <span>{{ hour }}:00 - {{ hour+1 }}:00</span>
-                                        <span class="badge bg-primary rounded-pill">{{ count }}</span>
+                                        <span>{{ '%02d' % hour }}:00 - {{ '%02d' % (hour + 1) }}:00</span>
+                                        <span class="badge bg-primary rounded-pill">{{ bedtime_counts[hour] }}</span>
                                     </div>
+                                    {% else %}
+                                    <div class="list-group-item text-muted">No data available</div>
                                     {% endfor %}
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <h6>Sleep Duration Distribution</h6>
                                 <div class="list-group">
-                                    {% set duration_groups = {'short': 0, 'normal': 0, 'long': 0} %}
-                                    {% for log in sleep_logs %}
-                                        {% if log.sleep_duration %}
-                                            {% if log.sleep_duration < 6 %}
-                                                {% set _ = duration_groups.update({'short': duration_groups['short'] + 1}) %}
-                                            {% elif log.sleep_duration <= 9 %}
-                                                {% set _ = duration_groups.update({'normal': duration_groups['normal'] + 1}) %}
-                                            {% else %}
-                                                {% set _ = duration_groups.update({'long': duration_groups['long'] + 1}) %}
-                                            {% endif %}
-                                        {% endif %}
-                                    {% endfor %}
+                                    {% set short = sleep_logs|selectattr('sleep_duration', '<', 6)|list|length %}
+                                    {% set normal = sleep_logs|selectattr('sleep_duration', '>=', 6)|selectattr('sleep_duration', '<=', 9)|list|length %}
+                                    {% set long = sleep_logs|selectattr('sleep_duration', '>', 9)|list|length %}
                                     
                                     <div class="list-group-item d-flex justify-content-between align-items-center">
-                                        <span>Short Sleep (< 6h)</span>
-                                        <span class="badge bg-danger rounded-pill">{{ duration_groups['short'] }}</span>
+                                        <span>Short Sleep (&lt; 6h)</span>
+                                        <span class="badge bg-danger rounded-pill">{{ short }}</span>
                                     </div>
                                     <div class="list-group-item d-flex justify-content-between align-items-center">
                                         <span>Normal Sleep (6-9h)</span>
-                                        <span class="badge bg-success rounded-pill">{{ duration_groups['normal'] }}</span>
+                                        <span class="badge bg-success rounded-pill">{{ normal }}</span>
                                     </div>
                                     <div class="list-group-item d-flex justify-content-between align-items-center">
-                                        <span>Long Sleep (> 9h)</span>
-                                        <span class="badge bg-warning rounded-pill">{{ duration_groups['long'] }}</span>
+                                        <span>Long Sleep (&gt; 9h)</span>
+                                        <span class="badge bg-warning rounded-pill">{{ long }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -176,13 +166,12 @@
                                         </td>
                                         <td>
                                             <div class="progress" style="height: 20px; width: 80px;">
-                                                <div class="progress-bar 
-                                                    {% if log.sleep_quality >= 8 %}bg-success
-                                                    {% elif log.sleep_quality >= 6 %}bg-info
-                                                    {% elif log.sleep_quality >= 4 %}bg-warning
-                                                    {% else %}bg-danger{% endif %}" 
-                                                     role="progressbar" 
-                                                     style="width: {{ (log.sleep_quality) * 10 }}%">
+                                                <div class="progress-bar quality-bar" 
+                                                    data-quality="{{ log.sleep_quality or 0 }}"
+                                                    role="progressbar" 
+                                                    aria-valuenow="{{ log.sleep_quality }}" 
+                                                    aria-valuemin="0" 
+                                                    aria-valuemax="10">
                                                     {{ log.sleep_quality }}
                                                 </div>
                                             </div>
@@ -217,52 +206,53 @@
                         </div>
                     </div>
                 </div>
+                
                 <!-- Quick Tips for Low Efficiency -->
-{% if sleep_logs and avg_efficiency < 75 %}
-<div class="card mt-4 border-warning">
-    <div class="card-header bg-warning text-dark">
-        <h5 class="card-title mb-0">
-            <i class="fas fa-lightbulb me-2"></i>Quick Tips to Improve Your Sleep Efficiency
-        </h5>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-6">
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item">
-                        <i class="fas fa-bed text-primary me-2"></i>
-                        <strong>20-Minute Rule:</strong> If you're not asleep after 20 minutes, get out of bed
-                    </li>
-                    <li class="list-group-item">
-                        <i class="fas fa-moon text-primary me-2"></i>
-                        <strong>Wind-Down Routine:</strong> Create a relaxing 30-minute pre-sleep ritual
-                    </li>
-                    <li class="list-group-item">
-                        <i class="fas fa-temperature-low text-primary me-2"></i>
-                        <strong>Cool Room:</strong> Keep bedroom temperature between 60-67°F (15-19°C)
-                    </li>
-                </ul>
-            </div>
-            <div class="col-md-6">
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item">
-                        <i class="fas fa-mobile-alt text-primary me-2"></i>
-                        <strong>No Screens:</strong> Put away devices 1 hour before bed
-                    </li>
-                    <li class="list-group-item">
-                        <i class="fas fa-coffee text-primary me-2"></i>
-                        <strong>No Caffeine:</strong> Avoid caffeine after 2 PM
-                    </li>
-                    <li class="list-group-item">
-                        <i class="fas fa-clock text-primary me-2"></i>
-                        <strong>Consistent Schedule:</strong> Same wake-up time, even on weekends
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
+                {% if sleep_logs and avg_efficiency is defined and avg_efficiency < 75 %}
+                <div class="card mt-4 border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-lightbulb me-2"></i>Quick Tips to Improve Your Sleep Efficiency
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item">
+                                        <i class="fas fa-bed text-primary me-2"></i>
+                                        <strong>20-Minute Rule:</strong> If you're not asleep after 20 minutes, get out of bed
+                                    </li>
+                                    <li class="list-group-item">
+                                        <i class="fas fa-moon text-primary me-2"></i>
+                                        <strong>Wind-Down Routine:</strong> Create a relaxing 30-minute pre-sleep ritual
+                                    </li>
+                                    <li class="list-group-item">
+                                        <i class="fas fa-temperature-low text-primary me-2"></i>
+                                        <strong>Cool Room:</strong> Keep bedroom temperature between 60-67°F (15-19°C)
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item">
+                                        <i class="fas fa-mobile-alt text-primary me-2"></i>
+                                        <strong>No Screens:</strong> Put away devices 1 hour before bed
+                                    </li>
+                                    <li class="list-group-item">
+                                        <i class="fas fa-coffee text-primary me-2"></i>
+                                        <strong>No Caffeine:</strong> Avoid caffeine after 2 PM
+                                    </li>
+                                    <li class="list-group-item">
+                                        <i class="fas fa-clock text-primary me-2"></i>
+                                        <strong>Consistent Schedule:</strong> Same wake-up time, even on weekends
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
                 
                 <!-- Recommendations Summary -->
                 {% if recommendations %}
@@ -308,19 +298,84 @@
     // Export data functionality
     function exportData(format) {
         // Show loading state
-        const btn = event.target;
+        const btn = event.target.closest('button');
         const originalText = btn.innerHTML;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Exporting...';
         btn.disabled = true;
         
-        // Call the export function from main.js
-        window.exportData(format);
+        // Check if export function exists in main.js
+        if (typeof window.exportData === 'function') {
+            window.exportData(format);
+        } else {
+            console.error('exportData function not found in main.js');
+            // Fallback export functionality
+            fetch('/api/sleep_data')
+                .then(response => response.json())
+                .then(data => {
+                    let content, mimeType, filename;
+                    
+                    if (format === 'json') {
+                        content = JSON.stringify(data, null, 2);
+                        mimeType = 'application/json';
+                        filename = 'sleep-data.json';
+                    } else if (format === 'csv') {
+                        // Simple CSV conversion
+                        const headers = ['Date', 'Duration', 'Quality'];
+                        const rows = data.dates.map((date, i) => [
+                            date,
+                            data.durations[i] || '',
+                            data.qualities[i] || ''
+                        ]);
+                        content = [
+                            headers.join(','),
+                            ...rows.map(row => row.join(','))
+                        ].join('\n');
+                        mimeType = 'text/csv';
+                        filename = 'sleep-data.csv';
+                    }
+                    
+                    const blob = new Blob([content], { type: mimeType });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(error => {
+                    console.error('Export failed:', error);
+                    alert('Failed to export data. Please try again.');
+                })
+                .finally(() => {
+                    // Restore button
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                });
+            return;
+        }
         
-        // Restore button after 2 seconds
+        // Restore button after 2 seconds (if using main.js function)
         setTimeout(() => {
             btn.innerHTML = originalText;
             btn.disabled = false;
         }, 2000);
     }
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.quality-bar').forEach(el => {
+            const quality = parseFloat(el.dataset.quality) || 0;
+            el.style.width = (quality * 10) + '%';
+            
+            // Add color class based on quality
+            if (quality >= 8) {
+                el.classList.add('bg-success');
+            } else if (quality >= 6) {
+                el.classList.add('bg-info');
+            } else if (quality >= 4) {
+                el.classList.add('bg-warning');
+            } else {
+                el.classList.add('bg-danger');
+            }
+        });
+    });
 </script>
 {% endblock %}

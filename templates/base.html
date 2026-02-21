@@ -14,6 +14,50 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     
+    <style>
+        /* Active navigation styling */
+        .navbar-nav .nav-link.active {
+            color: #4361ee !important;
+            font-weight: 600;
+            position: relative;
+        }
+        
+        .navbar-nav .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0.5rem;
+            right: 0.5rem;
+            height: 3px;
+            background: #4361ee;
+            border-radius: 3px 3px 0 0;
+        }
+        
+        /* User profile link styling */
+        .nav-link.user-profile-link {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .nav-link.user-profile-link i {
+            font-size: 1.2rem;
+        }
+        
+        /* Logout button styling */
+        .logout-btn {
+            margin-left: 10px;
+            padding: 0.375rem 1rem;
+        }
+        
+        /* Ensure proper spacing */
+        main.container {
+            min-height: calc(100vh - 200px);
+            padding-top: 20px;
+            padding-bottom: 20px;
+        }
+    </style>
+    
     {% block head %}{% endblock %}
 </head>
 <body>
@@ -32,27 +76,32 @@
                 <ul class="navbar-nav me-auto">
                     {% if current_user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('dashboard') }}">
+                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" 
+                           href="{{ url_for('dashboard') }}">
                             <i class="fas fa-home"></i> Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('sleep_log') }}">
+                        <a class="nav-link {% if request.endpoint == 'sleep_log' %}active{% endif %}" 
+                           href="{{ url_for('sleep_log') }}">
                             <i class="fas fa-bed"></i> Log Sleep
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('lifestyle') }}">
+                        <a class="nav-link {% if request.endpoint == 'lifestyle' %}active{% endif %}" 
+                           href="{{ url_for('lifestyle') }}">
                             <i class="fas fa-heartbeat"></i> Lifestyle
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('analysis') }}">
+                        <a class="nav-link {% if request.endpoint == 'analysis' %}active{% endif %}" 
+                           href="{{ url_for('analysis') }}">
                             <i class="fas fa-chart-line"></i> Analysis
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('reports') }}">
+                        <a class="nav-link {% if request.endpoint == 'reports' %}active{% endif %}" 
+                           href="{{ url_for('reports') }}">
                             <i class="fas fa-file-alt"></i> Reports
                         </a>
                     </li>
@@ -61,26 +110,27 @@
                 
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                    <!-- Username links directly to profile -->
+                    <li class="nav-item">
+                        <a class="nav-link user-profile-link {% if request.endpoint == 'profile' %}active{% endif %}" 
+                           href="{{ url_for('profile') }}">
                             <i class="fas fa-user-circle"></i> {{ current_user.username }}
                         </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('profile') }}">
-                                <i class="fas fa-user"></i> Profile
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('logout') }}">
-                                <i class="fas fa-sign-out-alt"></i> Logout
-                            </a></li>
-                        </ul>
+                    </li>
+                    <!-- Separate logout button -->
+                    <li class="nav-item">
+                        <a class="btn btn-outline-danger logout-btn" href="{{ url_for('logout') }}">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
                     </li>
                     {% else %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+                        <a class="nav-link {% if request.endpoint == 'login' %}active{% endif %}" 
+                           href="{{ url_for('login') }}">Login</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+                        <a class="nav-link {% if request.endpoint == 'register' %}active{% endif %}" 
+                           href="{{ url_for('register') }}">Register</a>
                     </li>
                     {% endif %}
                 </ul>
