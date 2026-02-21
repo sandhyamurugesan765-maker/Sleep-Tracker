@@ -351,3 +351,37 @@ const darkModeStyles = `
 const styleSheet = document.createElement('style');
 styleSheet.textContent = darkModeStyles;
 document.head.appendChild(styleSheet);
+
+// At the top of main.js, wrap everything in a try-catch
+(function() {
+    'use strict';
+    
+    try {
+        // Your existing code here...
+        
+        // Update quality indicator function
+        window.updateQualityIndicator = function(value) {
+            const indicator = document.getElementById('qualityIndicator');
+            if (!indicator) return;
+            
+            indicator.className = 'quality-indicator ';
+            if (value >= 8) {
+                indicator.classList.add('quality-excellent');
+            } else if (value >= 6) {
+                indicator.classList.add('quality-good');
+            } else if (value >= 4) {
+                indicator.classList.add('quality-fair');
+            } else {
+                indicator.classList.add('quality-poor');
+            }
+        };
+        
+        // Calculate sleep duration function
+        window.calculateSleepDuration = function() {
+            // Your existing calculateSleepDuration code...
+        };
+        
+    } catch (error) {
+        console.error('Error in main.js:', error);
+    }
+})();
