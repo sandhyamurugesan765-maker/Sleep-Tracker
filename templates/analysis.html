@@ -111,7 +111,7 @@
                 <!-- Visualization -->
                 <div class="chart-container mb-4">
                     <h5 class="mb-3">Sleep Trends - Last 7 Days</h5>
-                    <canvas id="sleepAnalysisChart" height="300"></canvas>
+                    <canvas id="sleepAnalysisChart" height="150"></canvas>
                 </div>
                 
                 <!-- Detailed Analysis -->
@@ -394,105 +394,135 @@
             el.style.width = efficiency.toFixed(1) + '%';
         });
         
-        // Create Chart.js chart
-        const ctx = document.getElementById('sleepAnalysisChart').getContext('2d');
-        const chartData = {{ chart_data|tojson }};
-        
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: chartData.dates,
-                datasets: [
-                    {
-                        label: 'Sleep Duration (hours)',
-                        data: chartData.durations,
-                        borderColor: '#4361ee',
-                        backgroundColor: 'rgba(67, 97, 238, 0.1)',
-                        tension: 0.4,
-                        fill: true,
-                        yAxisID: 'y'
-                    },
-                    {
-                        label: 'Sleep Quality (1-10)',
-                        data: chartData.qualities,
-                        borderColor: '#4cc9f0',
-                        backgroundColor: 'rgba(76, 201, 240, 0.1)',
-                        tension: 0.4,
-                        fill: true,
-                        yAxisID: 'y1'
-                    },
-                    {
-                        label: 'Efficiency (%)',
-                        data: chartData.efficiencies,
-                        borderColor: '#f59e0b',
-                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                        tension: 0.4,
-                        fill: true,
-                        yAxisID: 'y2'
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Sleep Analysis - Last 7 Days'
-                    },
-                    legend: {
-                        position: 'top',
-                    }
-                },
-                scales: {
-                    y: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
-                        title: {
-                            display: true,
-                            text: 'Hours'
-                        },
-                        min: 0,
-                        max: 12,
-                        grid: {
-                            drawOnChartArea: true,
-                        }
-                    },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        title: {
-                            display: true,
-                            text: 'Quality'
-                        },
-                        min: 0,
-                        max: 10,
-                        grid: {
-                            drawOnChartArea: false,
-                        },
-                    },
-                    y2: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        title: {
-                            display: true,
-                            text: 'Efficiency %'
-                        },
-                        min: 0,
-                        max: 100,
-                        grid: {
-                            drawOnChartArea: false,
-                        },
-                    }
+        // Check if chart_data exists
+        {% if chart_data %}
+            console.log("Chart data received:", {{ chart_data|tojson }});
+            
+            try {
+                // Create Chart.js chart
+                const ctx = document.getElementById('sleepAnalysisChart').getContext('2d');
+                const chartData = {{ chart_data|tojson }};
+                
+                // Check if chartData has the required properties
+                if (!chartData.dates || !chartData.durations || !chartData.qualities || !chartData.efficiencies) {
+                    console.error("Chart data is missing required properties");
+                    document.getElementById('sleepAnalysisChart').parentNode.innerHTML += 
+                        '<div class="alert alert-warning">Incomplete chart data</div>';
+                    return;
                 }
+                
+                // Ensure we have data to display
+                if (chartData.dates.length === 0) {
+                    document.getElementById('sleepAnalysisChart').parentNode.innerHTML += 
+                        '<div class="alert alert-info">No sleep data available for the last 7 days</div>';
+                    return;
+                }
+                
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: chartData.dates,
+                        datasets: [
+                            {
+                                label: 'Sleep Duration (hours)',
+                                data: chartData.durations,
+                                borderColor: '#4361ee',
+                                backgroundColor: 'rgba(67, 97, 238, 0.1)',
+                                tension: 0.4,
+                                fill: true,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: 'Sleep Quality (1-10)',
+                                data: chartData.qualities,
+                                borderColor: '#4cc9f0',
+                                backgroundColor: 'rgba(76, 201, 240, 0.1)',
+                                tension: 0.4,
+                                fill: true,
+                                yAxisID: 'y1'
+                            },
+                            {
+                                label: 'Efficiency (%)',
+                                data: chartData.efficiencies,
+                                borderColor: '#f59e0b',
+                                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                                tension: 0.4,
+                                fill: true,
+                                yAxisID: 'y2'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Sleep Analysis - Last 7 Days'
+                            },
+                            legend: {
+                                position: 'top',
+                            }
+                        },
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: 'Hours'
+                                },
+                                min: 0,
+                                max: 12,
+                                grid: {
+                                    drawOnChartArea: true,
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: 'Quality'
+                                },
+                                min: 0,
+                                max: 10,
+                                grid: {
+                                    drawOnChartArea: false,
+                                },
+                            },
+                            y2: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: 'Efficiency %'
+                                },
+                                min: 0,
+                                max: 100,
+                                grid: {
+                                    drawOnChartArea: false,
+                                },
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("Error creating chart:", error);
+                document.getElementById('sleepAnalysisChart').parentNode.innerHTML += 
+                    '<div class="alert alert-danger">Error loading chart: ' + error.message + '</div>';
             }
-        });
-});
+        {% else %}
+            console.warn("No chart_data received");
+            document.getElementById('sleepAnalysisChart').parentNode.innerHTML += 
+                '<div class="alert alert-warning">Chart data not available</div>';
+        {% endif %}
+    });
 </script>
 {% endblock %}
