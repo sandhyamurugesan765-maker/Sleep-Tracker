@@ -306,7 +306,7 @@ def analysis():
             else:
                 log.sleep_efficiency = 0
     
-    # Prepare data for Chart.js (instead of Matplotlib)
+    # Prepare data for Chart.js
     dates = [log.date.strftime('%Y-%m-%d') for log in sleep_logs]
     durations = [log.sleep_duration or 0 for log in sleep_logs]
     qualities = [log.sleep_quality or 0 for log in sleep_logs]
@@ -317,7 +317,13 @@ def analysis():
     avg_quality = sum(qualities) / len(qualities) if qualities else 0
     avg_efficiency = sum(efficiencies) / len(efficiencies) if efficiencies else 0
     
-    # Pass data to template (no chart_url needed)
+    # IMPORTANT: Check if there's any data
+    print(f"Debug - Dates: {dates}")
+    print(f"Debug - Durations: {durations}")
+    print(f"Debug - Qualities: {qualities}")
+    print(f"Debug - Efficiencies: {efficiencies}")
+    
+    # Pass data to template
     return render_template('analysis.html',
                          sleep_logs=sleep_logs,
                          avg_duration=avg_duration,
