@@ -284,7 +284,6 @@ def sleep_log():
                          recent_logs=recent_logs,
                          now=datetime.now(timezone.utc))
 
-# Module 3: Sleep Quality Analysis Module
 @app.route('/analysis')
 @login_required
 def analysis():
@@ -307,8 +306,8 @@ def analysis():
             else:
                 log.sleep_efficiency = 0
     
-    # Prepare data for visualization
-    dates = [log.date.strftime('%m-%d') for log in sleep_logs]
+    # Prepare data for Chart.js (instead of Matplotlib)
+    dates = [log.date.strftime('%Y-%m-%d') for log in sleep_logs]
     durations = [log.sleep_duration or 0 for log in sleep_logs]
     qualities = [log.sleep_quality or 0 for log in sleep_logs]
     efficiencies = [log.sleep_efficiency or 0 for log in sleep_logs]
@@ -318,30 +317,18 @@ def analysis():
     avg_quality = sum(qualities) / len(qualities) if qualities else 0
     avg_efficiency = sum(efficiencies) / len(efficiencies) if efficiencies else 0
     
-    # Generate sleep efficiency chart
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(dates, durations, marker='o', label='Duration (hrs)')
-    ax.plot(dates, qualities, marker='s', label='Quality (1-10)')
-    ax.plot(dates, efficiencies, marker='^', label='Efficiency (%)')
-    ax.set_xlabel('Date')
-    ax.set_ylabel('Metrics')
-    ax.set_title('Sleep Analysis - Last 7 Days')
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    
-    img = io.BytesIO()
-    plt.tight_layout()
-    plt.savefig(img, format='png')
-    img.seek(0)
-    chart_url = base64.b64encode(img.getvalue()).decode()
-    plt.close()
-    
+    # Pass data to template (no chart_url needed)
     return render_template('analysis.html',
                          sleep_logs=sleep_logs,
                          avg_duration=avg_duration,
                          avg_quality=avg_quality,
                          avg_efficiency=avg_efficiency,
-                         chart_url=chart_url)
+                         chart_data={
+                             'dates': dates,
+                             'durations': durations,
+                             'qualities': qualities,
+                             'efficiencies': efficiencies
+                         })
 
 # Module 4: Lifestyle Factor Module
 @app.route('/lifestyle', methods=['GET', 'POST'])
@@ -519,41 +506,19 @@ def reports():
         if efficiencies:
             avg_efficiency = sum(efficiencies) / len(efficiencies)
     
-    # Generate monthly trends chart
+    # Prepare chart data for Chart.js (instead of Matplotlib)
+    monthly_chart_data = None
     if sleep_logs:
         dates = [log.date.strftime('%m-%d') for log in sleep_logs]
         durations = [log.sleep_duration or 0 for log in sleep_logs]
         qualities = [log.sleep_quality or 0 for log in sleep_logs]
         
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
-        
-        # Sleep duration chart
-        ax1.bar(dates, durations, color='skyblue', alpha=0.7)
-        ax1.axhline(y=current_user.sleep_goal, color='r', linestyle='--', label='Sleep Goal')
-        ax1.set_xlabel('Date')
-        ax1.set_ylabel('Sleep Duration (hours)')
-        ax1.set_title('Sleep Duration - Last 30 Days')
-        ax1.legend()
-        ax1.grid(True, alpha=0.3)
-        plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45)
-        
-        # Sleep quality chart
-        ax2.plot(dates, qualities, marker='o', color='green', linewidth=2)
-        ax2.set_xlabel('Date')
-        ax2.set_ylabel('Sleep Quality (1-10)')
-        ax2.set_title('Sleep Quality - Last 30 Days')
-        ax2.grid(True, alpha=0.3)
-        plt.setp(ax2.xaxis.get_majorticklabels(), rotation=45)
-        
-        plt.tight_layout()
-        
-        img = io.BytesIO()
-        plt.savefig(img, format='png')
-        img.seek(0)
-        monthly_chart = base64.b64encode(img.getvalue()).decode()
-        plt.close()
-    else:
-        monthly_chart = None
+        monthly_chart_data = {
+            'dates': dates,
+            'durations': durations,
+            'qualities': qualities,
+            'sleep_goal': current_user.sleep_goal
+        }
     
     # Get recommendations
     recommendations = SleepRecommendation.query.filter_by(
@@ -564,7 +529,7 @@ def reports():
     return render_template('reports.html',
                          sleep_logs=sleep_logs,
                          lifestyle_logs=lifestyle_logs,
-                         monthly_chart=monthly_chart,
+                         monthly_chart_data=monthly_chart_data,  # Changed from monthly_chart
                          recommendations=recommendations,
                          avg_efficiency=avg_efficiency)
 
