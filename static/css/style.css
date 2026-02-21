@@ -351,6 +351,7 @@ body {
     z-index: -1;
 }
 
+
 .metric-value::after {
     content: attr(data-value);
     position: absolute;
