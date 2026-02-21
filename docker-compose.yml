@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database Service
+  db:
+    image: postgres:14
+    container_name: sleep_tracker_db
+    restart: always
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sleep_network
+
+  # Flask Web Application Service
+  web:
+    build: .
+    container_name: sleep_tracker_web
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      - SECRET_KEY=${SECRET_KEY}
+      - FLASK_ENV=${FLASK_ENV}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+    networks:
+      - sleep_network
+
+# Volumes for persistent data
+volumes:
+  postgres_data:
+
+# Networks
+networks:
+  sleep_network:
+    driver: bridge

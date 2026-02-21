@@ -14,6 +14,35 @@ import os
 import logging
 from sqlalchemy import text
 import sys
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+app = Flask(__name__)
+
+# Secret key
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.urandom(24).hex())
+
+# Database configuration
+database_url = os.environ.get('DATABASE_URL')
+if database_url:
+    # Fix for postgres:// vs postgresql://
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    print("✅ Using PostgreSQL database")
+else:
+    # Fallback to SQLite for local development without Docker
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sleep_tracker.db'
+    print("⚠️ Using SQLite database (local fallback)")
+
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_recycle': 300,
+    'pool_pre_ping': True,
+}
 
 # Configure logging FIRST
 logging.basicConfig(level=logging.INFO)
