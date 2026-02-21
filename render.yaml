@@ -4,6 +4,7 @@ services:
     runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
+    healthCheckPath: /health
     envVars:
       - key: SECRET_KEY
         generateValue: true
@@ -18,3 +19,4 @@ databases:
   - name: sleep-tracker-db
     databaseName: sleep_tracker
     user: sleep_tracker_user
+    plan: free

@@ -1,9 +1,9 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-import matplotlib.pyplot as plt
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('Agg')  # Must be before importing pyplot
+import matplotlib.pyplot as plt
 import io
 import base64
 import math
@@ -11,44 +11,92 @@ from database import db, User, SleepLog, LifestyleLog, SleepRecommendation
 import json
 from datetime import datetime, time, timedelta, date, timezone
 import os
-from dotenv import load_dotenv
+import logging
+from sqlalchemy import text
+import sys
 
-# Load environment variables
-load_dotenv()
+# Configure logging FIRST
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
+# Create Flask app FIRST
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'fallback-dev-key-only')
 
-# Use PostgreSQL in production, SQLite in development
-if os.environ.get('DATABASE_URL'):
-    # Render provides DATABASE_URL, but it might start with postgres://
-    db_url = os.environ.get('DATABASE_URL')
-    if db_url.startswith('postgres://'):
-        db_url = db_url.replace('postgres://', 'postgresql://', 1)
-    app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+# Production configuration
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.urandom(24).hex())
+
+# Database configuration for Render PostgreSQL
+database_url = os.environ.get('DATABASE_URL')
+if database_url:
+    # Render provides DATABASE_URL, fix for SQLAlchemy 1.4+
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    logger.info(f"✅ Using PostgreSQL database")
+    
+    # Force PostgreSQL dialect
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_recycle': 300,
+        'pool_pre_ping': True,
+        'echo': False,  # Set to True only for debugging
+    }
 else:
+    # Fallback to SQLite for local development
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sleep_tracker.db'
+    logger.warning("⚠️ DATABASE_URL not found, using SQLite (local development only)")
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {}
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sleep_tracker.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
+# Initialize extensions AFTER app is configured
 db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+login_manager.login_message = 'Please log in to access this page.'
+
+# Database initialization function
+def init_database():
+    with app.app_context():
+        try:
+            # Check if we're using PostgreSQL or SQLite
+            db_engine = app.config['SQLALCHEMY_DATABASE_URI']
+            logger.info(f"Using database: {db_engine.split('://')[0]}")
+            
+            # Create all tables
+            db.create_all()
+            logger.info("✅ Database tables created/verified successfully")
+            
+            # Verify tables exist
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            tables = inspector.get_table_names()
+            logger.info(f"Tables in database: {tables}")
+            
+        except Exception as e:
+            logger.error(f"❌ Database initialization failed: {e}")
+            # Don't exit in production, let the app try to recover
+            if 'DATABASE_URL' not in os.environ:
+                logger.error("This might be because you're using SQLite locally. If deploying to Render, make sure DATABASE_URL is set.")
+
+# Call it before the first request - SINGLE before_request handler
+@app.before_request
+def before_first_request():
+    if not hasattr(app, 'database_initialized'):
+        init_database()
+        app.database_initialized = True
 
 @login_manager.user_loader
 def load_user(user_id):
-    return db.session.get(User, int(user_id))  # SQLAlchemy 2.0 way
+    try:
+        return db.session.get(User, int(user_id))
+    except Exception as e:
+        logger.error(f"Error loading user: {e}")
+        return None
 
 # Custom Jinja2 filters
 @app.template_filter('clamp')
 def clamp_filter(value, min_val, max_val):
-    """Clamp a value between min and max"""
     try:
         return max(min_val, min(float(value), max_val))
     except (ValueError, TypeError):
@@ -58,7 +106,6 @@ def clamp_filter(value, min_val, max_val):
 @app.context_processor
 def utility_processor():
     def calculate_time_in_bed_template(bedtime, wake_up):
-        """Calculate total time in bed in hours for template"""
         if not bedtime or not wake_up:
             return 0
         bedtime_dt = datetime.combine(date.today(), bedtime)
@@ -73,7 +120,6 @@ def utility_processor():
 
 # Helper function for calculating time in bed
 def calculate_time_in_bed(bedtime, wake_up):
-    """Calculate total time in bed in hours"""
     bedtime_dt = datetime.combine(datetime.today(), bedtime)
     wakeup_dt = datetime.combine(datetime.today(), wake_up)
     
@@ -81,6 +127,24 @@ def calculate_time_in_bed(bedtime, wake_up):
         wakeup_dt += timedelta(days=1)
     
     return (wakeup_dt - bedtime_dt).total_seconds() / 3600
+
+# Health check endpoint for Render
+@app.route('/health')
+def health():
+    try:
+        # Test database connection
+        db.session.execute(text('SELECT 1'))
+        return jsonify({'status': 'healthy', 'database': 'connected'}), 200
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
+
+# ========== ALL YOUR EXISTING ROUTES GO HERE ==========
+# Copy ALL your route functions exactly as you had them:
+# profile(), sleep_log(), analysis(), lifestyle(), 
+# generate_sleep_recommendations(), generate_lifestyle_recommendations(),
+# reports(), dashboard(), register(), login(), logout(), index(),
+# complete_recommendation(), api_sleep_data()
 
 # Module 1: User Profile Module
 @app.route('/profile', methods=['GET', 'POST'])
@@ -129,7 +193,7 @@ def sleep_log():
             bedtime_str = request.form['bedtime']
             wakeup_str = request.form['wake_up_time']
             
-            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            date_val = datetime.strptime(date_str, '%Y-%m-%d').date()
             bedtime = datetime.strptime(bedtime_str, '%H:%M').time()
             wake_up = datetime.strptime(wakeup_str, '%H:%M').time()
             
@@ -138,8 +202,8 @@ def sleep_log():
             wake_after_sleep_onset = request.form.get('wake_after_sleep_onset', 0, type=int)  # minutes
             
             # Calculate total time in bed
-            bedtime_dt = datetime.combine(date, bedtime)
-            wakeup_dt = datetime.combine(date, wake_up)
+            bedtime_dt = datetime.combine(date_val, bedtime)
+            wakeup_dt = datetime.combine(date_val, wake_up)
             
             if wakeup_dt < bedtime_dt:
                 wakeup_dt += timedelta(days=1)
@@ -156,9 +220,9 @@ def sleep_log():
             sleep_efficiency = max(0, min(100, sleep_efficiency))  # Clamp between 0-100
             
             # Create sleep log with corrected values
-            sleep_log = SleepLog(
+            sleep_log_entry = SleepLog(
                 user_id=current_user.id,
-                date=date,
+                date=date_val,
                 bedtime=bedtime,
                 wake_up_time=wake_up,
                 nap_duration=request.form.get('nap_duration', 0, type=int),
@@ -170,7 +234,7 @@ def sleep_log():
                 sleep_efficiency=sleep_efficiency
             )
             
-            db.session.add(sleep_log)
+            db.session.add(sleep_log_entry)
             db.session.commit()
             
             # Generate recommendations
@@ -289,8 +353,6 @@ def lifestyle():
 
 # Module 5: Sleep Recommendation Module (Rule-based)
 def generate_sleep_recommendations(user_id):
-    """Generate sleep recommendations based on sleep patterns"""
-    
     # Get last 3 sleep logs
     sleep_logs = SleepLog.query.filter_by(
         user_id=user_id
@@ -300,7 +362,7 @@ def generate_sleep_recommendations(user_id):
         return
     
     latest_log = sleep_logs[0]
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     
     recommendations = []
     
@@ -353,8 +415,6 @@ def generate_sleep_recommendations(user_id):
     db.session.commit()
 
 def generate_lifestyle_recommendations(user_id, lifestyle_log):
-    """Generate recommendations based on lifestyle factors"""
-    
     recommendations = []
     
     # Rule 1: Caffeine intake
@@ -477,8 +537,7 @@ def reports():
                          lifestyle_logs=lifestyle_logs,
                          monthly_chart=monthly_chart,
                          recommendations=recommendations,
-                         avg_efficiency=avg_efficiency)  # ← ADD THIS LINE
-  
+                         avg_efficiency=avg_efficiency)
 
 # Dashboard
 @app.route('/dashboard')
@@ -611,6 +670,14 @@ def api_sleep_data():
     return jsonify(data)
 
 if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    
+    # Initialize database on startup
     with app.app_context():
-        db.create_all()
-    app.run(debug=True)
+        try:
+            init_database()
+        except Exception as e:
+            logger.error(f"Startup database initialization error: {e}")
+    
+    app.run(host='0.0.0.0', port=port, debug=debug)
