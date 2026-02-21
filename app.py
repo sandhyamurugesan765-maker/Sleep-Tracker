@@ -10,6 +10,26 @@ import math
 from database import db, User, SleepLog, LifestyleLog, SleepRecommendation
 import json
 from datetime import datetime, time, timedelta, date, timezone
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'fallback-dev-key-only')
+
+# Use PostgreSQL in production, SQLite in development
+if os.environ.get('DATABASE_URL'):
+    # Render provides DATABASE_URL, but it might start with postgres://
+    db_url = os.environ.get('DATABASE_URL')
+    if db_url.startswith('postgres://'):
+        db_url = db_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sleep_tracker.db'
+
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
@@ -23,7 +43,7 @@ login_manager.login_view = 'login'
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))  # SQLAlchemy 2.0 way
 
 # Custom Jinja2 filters
 @app.template_filter('clamp')
@@ -113,29 +133,40 @@ def sleep_log():
             bedtime = datetime.strptime(bedtime_str, '%H:%M').time()
             wake_up = datetime.strptime(wakeup_str, '%H:%M').time()
             
-            # Calculate sleep duration
+            # Get the new fields
+            sleep_latency = request.form.get('sleep_latency', 15, type=int)  # minutes
+            wake_after_sleep_onset = request.form.get('wake_after_sleep_onset', 0, type=int)  # minutes
+            
+            # Calculate total time in bed
             bedtime_dt = datetime.combine(date, bedtime)
             wakeup_dt = datetime.combine(date, wake_up)
             
             if wakeup_dt < bedtime_dt:
                 wakeup_dt += timedelta(days=1)
             
-            sleep_duration = (wakeup_dt - bedtime_dt).total_seconds() / 3600
+            time_in_bed_hours = (wakeup_dt - bedtime_dt).total_seconds() / 3600
+            
+            # Calculate actual sleep time (convert minutes to hours)
+            sleep_latency_hours = sleep_latency / 60
+            waso_hours = wake_after_sleep_onset / 60
+            actual_sleep_hours = max(0, time_in_bed_hours - sleep_latency_hours - waso_hours)
             
             # Calculate sleep efficiency
-            time_in_bed = calculate_time_in_bed(bedtime, wake_up)
-            sleep_efficiency = (sleep_duration / time_in_bed * 100) if time_in_bed > 0 else 0
+            sleep_efficiency = (actual_sleep_hours / time_in_bed_hours * 100) if time_in_bed_hours > 0 else 0
+            sleep_efficiency = max(0, min(100, sleep_efficiency))  # Clamp between 0-100
             
-            # Create sleep log
+            # Create sleep log with corrected values
             sleep_log = SleepLog(
                 user_id=current_user.id,
                 date=date,
                 bedtime=bedtime,
                 wake_up_time=wake_up,
                 nap_duration=request.form.get('nap_duration', 0, type=int),
+                sleep_latency=sleep_latency,  # Store in minutes
+                wake_after_sleep_onset=wake_after_sleep_onset,  # Store in minutes
                 sleep_quality=request.form.get('sleep_quality', type=int),
                 notes=request.form.get('notes', ''),
-                sleep_duration=sleep_duration,
+                sleep_duration=actual_sleep_hours,  # Store actual sleep time in hours
                 sleep_efficiency=sleep_efficiency
             )
             
@@ -447,11 +478,7 @@ def reports():
                          monthly_chart=monthly_chart,
                          recommendations=recommendations,
                          avg_efficiency=avg_efficiency)  # ← ADD THIS LINE
-    return render_template('reports.html',
-                         sleep_logs=sleep_logs,
-                         lifestyle_logs=lifestyle_logs,
-                         monthly_chart=monthly_chart,
-                         recommendations=recommendations)
+  
 
 # Dashboard
 @app.route('/dashboard')

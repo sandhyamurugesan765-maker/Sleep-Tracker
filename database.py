@@ -30,13 +30,18 @@ class SleepLog(db.Model):
     date = db.Column(db.Date, nullable=False, default=get_utc_today)
     bedtime = db.Column(db.Time, nullable=False)
     wake_up_time = db.Column(db.Time, nullable=False)
-    nap_duration = db.Column(db.Integer, default=0)
+    nap_duration = db.Column(db.Integer, default=0)  # minutes
+    
+    # NEW FIELDS for accurate efficiency calculation
+    sleep_latency = db.Column(db.Integer, default=15)  # minutes to fall asleep
+    wake_after_sleep_onset = db.Column(db.Integer, default=0)  # minutes awake during night
+    
     sleep_quality = db.Column(db.Integer)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=get_utc_now)
     
-    sleep_duration = db.Column(db.Float)
-    sleep_efficiency = db.Column(db.Float)
+    sleep_duration = db.Column(db.Float)  # actual sleep time in hours
+    sleep_efficiency = db.Column(db.Float)  # percentage
 
 class LifestyleLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
